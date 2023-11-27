@@ -1,4 +1,4 @@
-# ZhouYu_wild_CodeCollection
+# ZhouYu_Wild_CodeZoo
 
 Hi, This is a place where Zhouyu Lu's hide his written code in his life working for computational biology .
 Several notification before you read it (if you are really willing to...)
