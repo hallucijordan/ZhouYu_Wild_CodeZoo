@@ -1,0 +1,195 @@
+---
+title: "GLM Final Project"
+author: "Yu-Xin Lu"
+format: html
+editor: visual
+---
+
+## idea:
+
+不同年份的样本分布偏倚?
+
+受访意愿 (找某个参数代表之, 如drop) 随age的变化?
+
+注意到questionnaire部分有 Health Insurance 和 Immunization 和 Medical Conditions 和 occupation 和 income (2008开始) 和 Preventive Aspirin Use等
+
+用高斯混合模型?
+
+背景：大数据医学、大健康？
+
+数据要易得、无创等等，便于大量采集并进行风险预警。
+
+但是大量采集可能存在bias（受访意愿），导致数据样本和真实世界分布并不接近，可能会导致错误的预测模型
+
+就假设我们也在搞一个新的大数据库, 比如说从投保人信息里收集并做风险预测的话，这个人群很可能普遍有相对稳定充裕的收入、有更高的健康管理意识，从而导致我们从这个数据集中拟合出来的模型存在bias，又比如从医院收集病历信息，但很多人群生病习惯自己扛、医疗条件不方便、家境比较窘迫等等因素就是bias。但缺乏总体信息，这样的bias并不能很容易地adjust。即便是NHANES，是基于人口普查的信息随机采样邀请已经很大程度上避开了这样的bias，1986年也有篇文献专门讨论过当时nhanes 的 nonresponse bias的问题（也就是愿意填NHANES这个条件，在一些问题中很可能已经是很重要的confounder了。比如说2019-2020的数据的examination response rate 只有 44.0%）。
+
+本来也有想过去统计NHANES中部分条目的拒绝回答比例和occupation、等
+
+如何衡量、纠正、提示这种bias？
+
+假设使用保险公司的数据作为样本，用NHANS模拟社会全体
+
+(也不一定就是保险参保情况, 也可以是收入情况/受教育情况/Hospital Utilization and Access to Care等等。只要能找到一个变量，在受访群体中和全社会群体中的占比不同即可。然后就在nhanes中根据这个变量取子集？
+
+研究这一群体导致的某回归系数（data driven，某组变量间关系可能并不发生显著的变化，也可能不宜做回归分析，但有的可能存在这种差异）变化。
+
+同时比较真实世界保险参保比例和Nhanes的参保比例，说明Nhanes也存在这种bias（但没有"保险公司"这么强烈。）
+
+## 方法：
+
+1、直接分成两组（如上所述）做经典问题的回归分析（比如：心理健康Depression Screen或运动习惯physical activity等\*长期/习惯性的变量 对心血管健康程度的预测
+
+2、用NHANS的全部数据，但使用参保等参数作为confounder？
+
+哪种更合理？
+
+ddl是？6.15
+
+用保险/occupation/income等指标回归某几种(merge在一起作为一个结果变量) 潜伏的疾病 (需要体检等才知道的) \* income/occupation等 可以作为confounder. 然后再寻找美国整体人群的客观的公共数据如参保率 / 就业率 / 收入水平 等与数据集分布进行对比, 揭示受访意愿导致的bias可能影响到很多研究结论的准确性。（贝叶斯估计？）
+
+Hypothesis: 保险/immunization 等可以暗示受访者的健康管理意识, 而愿意参与问卷调查的受访者也具有此类倾向，自然而然会高于全社会的参保率什么的（但是这个结论好像没啥意义。）回归的结果可以干嘛呢?
+
+受访者健康意识偏高 -\> 某些不良嗜好被拒绝/疾病征兆被更早检出并"调理" -\> 临床研究回归分析导致遗漏本来信息量很大(很重要/暗示性很强), 但在特定人群中并不显著的一些变量。如何验证这个逻辑？
+
+再去找一组回顾性队列研究的data，用同一组变量进行回归
+
+## 思路整理：
+
+1、模型：用易得的问卷数据预测血脂等采集较困难的数据（找文献，调参寻找预测效果尚可的overall model？若参保不带来影响可能需要更换model）
+
+2、情境：特定数据来源（保险公司）会导致模型产生bias（按是否参保的信息取出数据子集，重新评价预测效果或beta值）
+
+3、步骤：
+
+-   模型：肝硬化情况\~饮酒（主要预测变量）+ age + BMI 等等（confounder的选取需要参考文献！）
+
+-   下载各项数据，根据官网信息提取特定的列并merge，可以参考：https://blog.csdn.net/qq_42458954/article/details/118853568
+
+-   分析：保险/就医/职业等特定的数据来源是否对预测的beta值产生影响
+
+-   解释：健康意识，如检查保险等与运动习惯、smoking、职业等健康意识的相关性
+
+-   
+
+## 数据获取：
+
+[NHANES Questionnaires, Datasets, and Related Documentation (cdc.gov)](https://wwwn.cdc.gov/nchs/nhanes/Default.aspx)
+
+[UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/index.php)
+
+[Find Open Datasets and Machine Learning Projects \| Kaggle](https://www.kaggle.com/datasets)
+
+### 数据导入
+
+```{r}
+library(foreign)
+HIQ = read.xport('./DATA/HIQ_J.XPT') # health insurance
+IMQ = read.xport('./DATA/IMQ_J.XPT') # immunization 
+OCQ = read.xport('./DATA/OCQ_J.XPT') # occupation
+INQ = read.xport('./DATA/INQ_J.XPT') # income
+PAQ = read.xport('./DATA/PAQ_J.XPT') # physical health
+PFQ = read.xport('./DATA/PFQ_J.XPT') # physical functioning
+SMQ = read.xport('./DATA/SMQ_J.XPT') # smoking - cigarette use
+ALQ = read.xport('./DATA/ALQ_J.XPT') # alcohol use
+LUX = read.xport('./DATA/LUX_J.XPT') # Liver Ultrasound Transient Elastography
+DEM = read.xport('./DATA/DEMO_J.XPT') # Demographic Variables
+BMX = read.xport('./DATA/BMX_J.XPT') # Body measures
+BPX = read.xport('./DATA/BPX_J.XPT') # Blood Pressure 
+HEQ = read.xport('./DATA/HEQ_J.XPT') # hepatitis
+```
+
+### 数据整理
+
+```{r}
+library(magrittr) 
+DEM$Mexican = factor(DEM$RIDRETH3==1)
+DEM$Hispanic = factor(DEM$RIDRETH3==2)
+DEM$White = factor(DEM$RIDRETH3==3)
+DEM$Black = factor(DEM$RIDRETH3==4)
+DEM$Asian = factor(DEM$RIDRETH3==6)
+DEM = DEM[,c('SEQN','RIAGENDR','RIDAGEYR','Mexican','Hispanic','White','Black','Asian')]
+BMX = BMX[,c('SEQN','BMXBMI','BMXWAIST')]
+BPX = na.omit(BPX[,c('SEQN','BPXSY1','BPXDI1','BPXSY2','BPXDI2','BPXSY3','BPXDI3')])
+BPX$SBP = (BPX$BPXSY1 + BPX$BPXSY2 + BPX$BPXSY3)/3 # mean of SBP
+BPX$SDP = (BPX$BPXDI1 + BPX$BPXDI2 + BPX$BPXDI3)/3 # mean of SDP
+BPX = BPX[,c('SEQN','SBP','SDP')]
+# ALQ = ALQ[!(is.na(ALQ$ALQ111)),]
+# ALQ = ALQ[!(ALQ['ALQ111']>3),]
+# for (i in 1:length(ALQ[,'SEQN'])){
+#   if (ALQ[i,'ALQ111']==2){
+#     ALQ[i,'ALQ121']<-0
+#   }
+# }
+# ALQ = ALQ[!(ALQ['ALQ121']>11),]
+# ALQ[ALQ['ALQ121']==0,'ALQ121']=11
+# ALQ = ALQ[,c('SEQN','ALQ121')]       # drinking frequency, 11 is never，10~1
+# ALQ = ALQ[ALQ['ALQ130']<16,c('SEQN','ALQ130')]
+ALQ = ALQ[ALQ['ALQ270']<11,c('SEQN','ALQ270')]
+ALQ = na.omit(ALQ)
+ALQ[ALQ['ALQ270']==0,'ALQ270']=11
+HIQ = HIQ[,c('SEQN','HIQ011')]       # 1 is covered, 2 not, 7 resused, 9 don`t know
+LUX$lgSIQRM = log10(LUX[,'LUXSIQRM'])
+LUX = LUX[!(is.infinite(LUX$lgSIQRM)),c('SEQN','lgSIQRM')]
+HEQ$ILL = HEQ$HEQ010+HEQ$HEQ030
+HEQ$ILL[HEQ$ILL<4]=1 # Hepatitis B or C
+HEQ$ILL[HEQ$ILL==4]=0 # healthy
+HEQ = HEQ[HEQ$ILL<2,c('SEQN','ILL')] # ignore NA
+merge(LUX,ALQ,by='SEQN') %>% 
+  merge(HIQ,by='SEQN') %>% 
+  merge(DEM,by='SEQN') %>%
+  merge(BMX,by='SEQN') %>%
+  merge(BPX,by='SEQN') %>%
+  merge(HEQ,by='SEQN') %>%
+  na.omit() -> data
+hist(data$lgSIQRM)
+plot(x=data$ALQ270,y=data$lgSIQRM)
+plot(x=data$RIAGENDR,y=data$lgSIQRM)
+plot(x=data$RIDAGEYR,y=data$lgSIQRM)
+plot(x=data$BMXBMI,y=data$lgSIQRM)
+plot(x=data$SBP,y=data$lgSIQRM)
+plot(x=data$SDP,y=data$lgSIQRM)
+plot(x=data$ILL,y=data$lgSIQRM)
+
+```
+
+## 数据探索：
+
+```{r}
+model = lm(lgSIQRM~ALQ270,data=data)
+summary(model)
+plot(model)
+```
+
+基于文献尝试添加协变量，寻找预测最好的情况：age，gender，bmi，waist circumference，sbp/dbp
+
+[High liver stiffness values by transient elastography related to metabolic syndrome and harmful alcohol use in a large Spanish cohort - PMC (nih.gov)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8498397/)
+
+```{r}
+full_model = lm(lgSIQRM~ALQ270+RIAGENDR+RIDAGEYR+BMXBMI+BMXWAIST+SBP+SDP+ILL+Mexican+Hispanic+White+Black+Asian,data=data)
+summary(full_model)
+print('AIC')
+AIC(full_model)
+```
+
+加入协变量导致ALQ121和ALQ130的效应变得不显著了，尝试更换模型中饮酒的指标为ALQ270效果很好，所以单纯的饮酒频率和总量都不是最关键的因素，而短时间内大量饮酒才是罪魁祸首
+
+考虑到r2太小, 尝试增加协变量:
+
+## 模型选择：
+
+```{r}
+library(MASS)
+stepmodel = stepAIC(full_model, direction = 'both')
+summary(stepmodel)
+```
+
+## 亚组比较：
+
+```{r}
+data_hi = data[data['HIQ011']==1,]
+full_model.2 = lm(lgSIQRM ~ ALQ270 + RIAGENDR + RIDAGEYR + BMXWAIST + SDP + White + Black,data=data_hi)
+summary(full_model.2)
+
+```
+
+## 
