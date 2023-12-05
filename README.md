@@ -6,8 +6,4 @@ Several notification before you read it (if you are really willing to...)
 2. This collection is still updating as long as you have access to it.
 3. Wish you a happy good day.
 
-   
-Here is the catalogue:
 
-`[TOC]`
-## 1. 
